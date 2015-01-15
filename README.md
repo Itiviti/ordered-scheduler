@@ -1,2 +1,2 @@
-# ordered-parallel-processor
+# Ordered Parallel Processor
 Ordered processing going parallel
