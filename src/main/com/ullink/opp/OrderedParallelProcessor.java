@@ -20,11 +20,11 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class OrderedParallelProcessor<OUT>
+public class OrderedParallelProcessor
 {
     private final int           nSlots;
     private final int           mask;
-    private OUT[]               slots;
+    private Runnable[]          slots;
 
     private long                tail;
 
@@ -39,7 +39,7 @@ public class OrderedParallelProcessor<OUT>
         // Init
         this.nSlots = nSlot;
         this.mask = nSlot - 1;
-        slots = (OUT[]) new Object[nSlot];
+        slots = new Runnable[nSlot];
         tail = 0;
     }
 
@@ -53,7 +53,7 @@ public class OrderedParallelProcessor<OUT>
         return (seq < tail + nSlots);
     }
 
-    public void runSequentially(long seq, OUT outObject)
+    public void runSequentially(long seq, Runnable runnable)
     {
         while (true)
         {
@@ -81,7 +81,7 @@ public class OrderedParallelProcessor<OUT>
                 // Is it my turn?
                 if (seq > localTail)
                 {
-                    slots[slotOf(seq)] = outObject;
+                    slots[slotOf(seq)] = runnable;
                     return;
                 }
             }
@@ -93,16 +93,16 @@ public class OrderedParallelProcessor<OUT>
             if (seq == localTail)
             {
                 // I'm alone on my slot I can go for it
-                consumeSequentiallyProtected(localTail, outObject);
+                runProtected(localTail, runnable);
 
                 // Look for more to process
                 int index = slotOf(++localTail);
                 while (true)
                 {
-                    OUT slot;
+                    Runnable slot;
                     while ((slot = slots[index])!=null)
                     {
-                        consumeSequentiallyProtected(localTail, slot);
+                        runProtected(localTail, slot);
                         slots[index] = null;
 
                         // Move to next slot
@@ -134,11 +134,11 @@ public class OrderedParallelProcessor<OUT>
     }
 
 
-    private void consumeSequentiallyProtected(long seq, OUT object)
+    private void runProtected(long seq, Runnable runnable)
     {
         try
         {
-            //consumeSequentially(object);
+            runnable.run();
         }
         catch (Throwable e)
         {
