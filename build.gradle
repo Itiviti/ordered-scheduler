@@ -1,0 +1,15 @@
+apply plugin: 'java'
+
+ext.ullinkGradleScripts = 'https://raw.github.com/gluck/gradle-scripts/master'
+apply from: "${ext.ullinkGradleScripts}/task-rules.gradle"
+apply from: "${ext.ullinkGradleScripts}/functions.gradle"
+
+group = 'com.ullink.parallel'
+version = '1.0'
+description 'Ordered Parallel Processor brings a lightweigth solution for unlocking code that is only synchronized because of ordered/sequential requirements'
+
+dependencies {
+    testCompile(
+            [group: 'junit', name: 'junit', version: '4.11'],
+    )
+}
