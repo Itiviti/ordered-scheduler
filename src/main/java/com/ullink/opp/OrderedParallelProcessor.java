@@ -26,12 +26,14 @@ public class OrderedParallelProcessor
     private final int           mask;
     private Runnable[]          slots;
 
+    private final ExceptionHandler exceptionHandler;
+
     private long                tail;
 
     private Lock                producerLock = new ReentrantLock();
     private Condition           condFull     = producerLock.newCondition();
 
-    public OrderedParallelProcessor(int nSlot)
+    public OrderedParallelProcessor(int nSlot, ExceptionHandler exceptionHandler)
     {
         // Next power of 2
         nSlot = 1 << (32 - Integer.numberOfLeadingZeros(nSlot - 1));
@@ -41,6 +43,17 @@ public class OrderedParallelProcessor
         this.mask = nSlot - 1;
         slots = new Runnable[nSlot];
         tail = 0;
+        this.exceptionHandler = exceptionHandler;
+    }
+
+    public OrderedParallelProcessor(int nSlot)
+    {
+        this(nSlot, new ExceptionHandler() {
+            @Override
+            public void handle(long seq, Runnable runnable, Throwable exception) {
+                // By default, don't do anything
+            }
+        });
     }
 
     private int slotOf(long i)
@@ -53,7 +66,13 @@ public class OrderedParallelProcessor
         return (seq < tail + nSlots);
     }
 
-    public void runSequentially(long seq, Runnable runnable)
+    /**
+     *
+     * @param seq
+     * @param runnable
+     * @return next sequence to be processed.
+     */
+    public long runSequentially(long seq, Runnable runnable)
     {
         while (true)
         {
@@ -71,7 +90,7 @@ public class OrderedParallelProcessor
                     }
                     catch (InterruptedException interrupt)
                     {
-                        // TODO error management
+                        // TODO Interrupt error management
                     }
                 }
 
@@ -82,7 +101,7 @@ public class OrderedParallelProcessor
                 if (seq > localTail)
                 {
                     slots[slotOf(seq)] = runnable;
-                    return;
+                    return localTail;
                 }
             }
             finally
@@ -117,7 +136,7 @@ public class OrderedParallelProcessor
                         {
                             tail = localTail;
                             condFull.signalAll();
-                            return;
+                            return localTail;
                         }
                     }
                     finally
@@ -142,7 +161,15 @@ public class OrderedParallelProcessor
         }
         catch (Throwable e)
         {
-            //exceptionHandler(object, e);
+            try
+            {
+                exceptionHandler.handle(seq, runnable, e);
+            }
+            catch(Throwable ignored)
+            {
+                // Ignore exceptions in the ExceptionHandler
+                // It's important that we move forward
+            }
         }
     }
 
