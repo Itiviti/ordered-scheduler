@@ -22,13 +22,13 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class OrderedParallelProcessor
 {
-    private final int           nSlots;
-    private final int           mask;
+    private final int                 nSlots;
+    private final int                 mask;
     private final Runnable[]          slots;
 
-    private final ExceptionHandler exceptionHandler;
+    private final ExceptionHandler    exceptionHandler;
 
-    private volatile long       tail;
+    private volatile long             tail;
 
     private final Lock                producerLock = new ReentrantLock();
     private final Condition           condFull     = producerLock.newCondition();
