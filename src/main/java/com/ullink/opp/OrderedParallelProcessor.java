@@ -28,7 +28,7 @@ public class OrderedParallelProcessor
 
     private final ExceptionHandler exceptionHandler;
 
-    private long                tail;
+    private volatile long       tail;
 
     private Lock                producerLock = new ReentrantLock();
     private Condition           condFull     = producerLock.newCondition();
@@ -61,11 +61,6 @@ public class OrderedParallelProcessor
         return (int) i & mask;
     }
 
-    private boolean isSlotAvailable(long seq)
-    {
-        return (seq < tail + nSlots);
-    }
-
     /**
      *
      * @param seq
@@ -74,41 +69,10 @@ public class OrderedParallelProcessor
      */
     public long runSequentially(long seq, Runnable runnable)
     {
+        long localTail = tail;
+
         while (true)
         {
-            long localTail;
-
-            producerLock.lock();
-            try
-            {
-                // Check available slot
-                while (!isSlotAvailable(seq))
-                {
-                    try
-                    {
-                        condFull.await();
-                    }
-                    catch (InterruptedException interrupt)
-                    {
-                        // TODO Interrupt error management
-                    }
-                }
-
-                // Capture tail
-                localTail = tail;
-
-                // Is it my turn?
-                if (seq > localTail)
-                {
-                    slots[slotOf(seq)] = runnable;
-                    return localTail;
-                }
-            }
-            finally
-            {
-                producerLock.unlock();
-            }
-
             if (seq == localTail)
             {
                 // I'm alone on my slot I can go for it
@@ -147,7 +111,39 @@ public class OrderedParallelProcessor
             }
             else
             {
-                throw new AssertionError("Duplicate sequence asked for processing - ignoring");
+                producerLock.lock();
+                try
+                {
+                    // Check available slot
+                    while (seq >= tail + nSlots)
+                    {
+                        try {
+                            condFull.await();
+                        } catch (InterruptedException interrupt) {
+                            // TODO Interrupt error management
+                        }
+                    }
+
+                    localTail = tail;
+
+                    if (seq == localTail)
+                    {
+                        // Loop again
+                    }
+                    else if (seq > localTail)
+                    {
+                        slots[slotOf(seq)] = runnable;
+                        return localTail;
+                    }
+                    else
+                    {
+                        throw new AssertionError("Can't process ticket twice");
+                    }
+                }
+                finally
+                {
+                    producerLock.unlock();
+                }
             }
         }
     }
