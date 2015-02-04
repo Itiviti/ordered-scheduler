@@ -16,24 +16,27 @@
 
 package com.ullink.opp;
 
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
-public class OrderedParallelProcessor
+public class OrderedParallelProcessorLowLevelLockFree
 {
-    private final int                 nSlots;
-    private final int                 mask;
-    private final Runnable[]          slots;
+    private final int           nSlots;
+    private final int           mask;
 
-    private final ExceptionHandler    exceptionHandler;
+    private static final Runnable LOCK = new Runnable() {
+        @Override
+        public void run() {
 
-    private volatile long             tail;
+        }
+    };
 
-    private final Lock                producerLock = new ReentrantLock();
-    private final Condition           condFull     = producerLock.newCondition();
+    private final AtomicReferenceArray<Runnable> rSlots;
 
-    public OrderedParallelProcessor(int nSlot, ExceptionHandler exceptionHandler)
+    private final ExceptionHandler exceptionHandler;
+
+    private volatile long       tail;
+
+    public OrderedParallelProcessorLowLevelLockFree(int nSlot, ExceptionHandler exceptionHandler)
     {
         // Next power of 2
         nSlot = 1 << (32 - Integer.numberOfLeadingZeros(nSlot - 1));
@@ -41,12 +44,12 @@ public class OrderedParallelProcessor
         // Init
         this.nSlots = nSlot;
         this.mask = nSlot - 1;
-        slots = new Runnable[nSlot];
+        rSlots = new AtomicReferenceArray<Runnable>(nSlots);
         tail = 0;
         this.exceptionHandler = exceptionHandler;
     }
 
-    public OrderedParallelProcessor(int nSlot)
+    public OrderedParallelProcessorLowLevelLockFree(int nSlot)
     {
         this(nSlot, new ExceptionHandler() {
             @Override
@@ -69,10 +72,16 @@ public class OrderedParallelProcessor
      */
     public long runSequentially(long seq, Runnable runnable)
     {
-        long localTail = tail;
+        // Check available slot
+        while (seq >= (tail + nSlots))
+        {
+            Thread.yield();
+        }
 
         while (true)
         {
+            long localTail = tail;
+
             if (seq == localTail)
             {
                 // I'm alone on my slot I can go for it
@@ -83,66 +92,45 @@ public class OrderedParallelProcessor
                 while (true)
                 {
                     Runnable slot;
-                    while ((slot = slots[index])!=null)
+                    while ((slot = rSlots.get(index))!=null)
                     {
+                        if (slot == LOCK)
+                        {
+                            continue;
+                        }
+
                         runProtected(localTail, slot);
-                        slots[index] = null;
+                        rSlots.lazySet(index, null);
 
                         // Move to next slot
                         index = slotOf(++localTail);
                     }
 
                     // Synchronization point with competing threads on the slot
-                    producerLock.lock();
-                    try
+                    if (rSlots.compareAndSet(index, null, LOCK))
                     {
-                        if (slots[index] == null)
-                        {
-                            tail = localTail;
-                            condFull.signalAll();
-                            return localTail;
-                        }
-                    }
-                    finally
-                    {
-                        producerLock.unlock();
+                        tail = localTail;
+                        rSlots.lazySet(index, null);
+                        return localTail;
                     }
                 }
             }
             else
             {
-                producerLock.lock();
-                try
+                int index = slotOf(seq);
+                if (rSlots.compareAndSet(index, null, runnable))
                 {
-                    // Check available slot
-                    while (seq >= (tail + nSlots))
-                    {
-                        try {
-                            condFull.await();
-                        } catch (InterruptedException interrupt) {
-                            // TODO Interrupt error management
-                        }
-                    }
-
                     localTail = tail;
-
                     if (seq == localTail)
                     {
-                        // Loop again
-                    }
-                    else if (seq > localTail)
-                    {
-                        slots[slotOf(seq)] = runnable;
-                        return localTail;
+                        // set back to null
+                        rSlots.lazySet(index, null);
+                        // loop
                     }
                     else
                     {
-                        throw new AssertionError("Can't process ticket twice");
+                        return localTail;
                     }
-                }
-                finally
-                {
-                    producerLock.unlock();
                 }
             }
         }
