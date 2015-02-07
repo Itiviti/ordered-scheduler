@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertTrue;
 
-public class OrderedParallelProcessorLowLevelLockFreeTest
+public class OrderedParallelProcessorLockFreeTest
 {
     public static long count = 0;
     public static volatile long failures = 0;
@@ -42,7 +42,7 @@ public class OrderedParallelProcessorLowLevelLockFreeTest
     public long bench() throws Exception {
         count = 0;
 
-        final OrderedParallelProcessorLowLevelLockFree seqx = new OrderedParallelProcessorLowLevelLockFree(1024);
+        final OrderedParallelProcessorLockFree seqx = new OrderedParallelProcessorLockFree(1024);
 
         final long LOOPS = 2*1000*1000;
         ExecutorService x = new ThreadPoolExecutor(10, 10, 1, TimeUnit.DAYS, new ArrayBlockingQueue<Runnable>((int) LOOPS));
