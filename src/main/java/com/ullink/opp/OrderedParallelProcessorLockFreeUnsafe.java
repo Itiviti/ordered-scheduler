@@ -25,10 +25,10 @@ public class OrderedParallelProcessorLockFreeUnsafe
     private final int           nSlots;
     private final long          mask;
 
-    private static final Runnable LOCK = new Runnable() {
+    private static final Runnable TAIL = new Runnable() {
         @Override
         public void run() {
-
+            throw new Error("Executing TAIL, not possible");
         }
     };
 
@@ -67,6 +67,8 @@ public class OrderedParallelProcessorLockFreeUnsafe
         this.array = new Runnable[nSlots];
         this.tail = 0;
         this.exceptionHandler = exceptionHandler;
+
+        this.array[0] = TAIL;
     }
 
     public OrderedParallelProcessorLockFreeUnsafe(int nSlot)
@@ -88,32 +90,31 @@ public class OrderedParallelProcessorLockFreeUnsafe
     public long runSequentially(long seq, Runnable runnable)
     {
         // Check available slot
-        while (seq >= (tail + nSlots))
+        long localTail = tail;
+        while (seq >= (localTail + nSlots))
         {
             Thread.yield();
+            localTail = tail;
         }
+
+        long offset = byteOffsetOf(seq);
 
         while (true)
         {
-            long localTail = tail;
-
-            if (seq == localTail)
+            if (getVolatile(offset) == TAIL)
             {
                 // I'm alone on my slot I can go for it
-                runProtected(localTail, runnable);
+                runProtected(seq, runnable);
+                set(offset, null);
 
                 // Look for more to process
-                long offset = byteOffsetOf(++localTail);
+                localTail = seq+1;
+                offset = byteOffsetOf(localTail);
                 while (true)
                 {
                     Runnable slot;
-                    while ((slot = get(offset))!=null)
+                    while ((slot = getVolatile(offset))!=null)
                     {
-                        if (slot == LOCK)
-                        {
-                            continue;
-                        }
-
                         runProtected(localTail, slot);
                         set(offset, null);
 
@@ -121,31 +122,20 @@ public class OrderedParallelProcessorLockFreeUnsafe
                         offset = byteOffsetOf(++localTail);
                     }
 
+                    tail = localTail; // Wake up threads
+
                     // Synchronization point with competing threads on the slot
-                    if (compareAndSet(offset, null, LOCK))
+                    if (compareAndSet(offset, null, TAIL))
                     {
-                        tail = localTail;
-                        setOrdered(offset, null);
                         return localTail;
                     }
                 }
             }
             else
             {
-                long offset = byteOffsetOf(seq);
                 if (compareAndSet(offset, null, runnable))
                 {
-                    localTail = tail;
-                    if (seq == localTail)
-                    {
-                        // set back to null
-                        set(offset, null);
-                        // loop
-                    }
-                    else
-                    {
-                        return localTail;
-                    }
+                    return localTail;
                 }
             }
         }
@@ -175,6 +165,15 @@ public class OrderedParallelProcessorLockFreeUnsafe
     private long byteOffsetOf(long i)
     {
         return ((i & mask) << shift) + base;
+    }
+
+    private Runnable getVolatile(long offset)
+    {
+        return (Runnable) unsafe.getObjectVolatile(array, offset);
+    }
+
+    private void setVolatile(long offset, Runnable o) {
+        unsafe.putObjectVolatile(array, offset, o);
     }
 
     private Runnable get(long offset)

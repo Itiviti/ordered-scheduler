@@ -23,10 +23,10 @@ public class OrderedParallelProcessorLockFree
     private final int           nSlots;
     private final int           mask;
 
-    private static final Runnable LOCK = new Runnable() {
+    private static final Runnable TAIL = new Runnable() {
         @Override
         public void run() {
-
+            throw new Error("Executing TAIL, not possible");
         }
     };
 
@@ -47,6 +47,8 @@ public class OrderedParallelProcessorLockFree
         rSlots = new AtomicReferenceArray<Runnable>(nSlots);
         tail = 0;
         this.exceptionHandler = exceptionHandler;
+
+        rSlots.set(0, TAIL);
     }
 
     public OrderedParallelProcessorLockFree(int nSlot)
@@ -73,64 +75,50 @@ public class OrderedParallelProcessorLockFree
     public long runSequentially(long seq, Runnable runnable)
     {
         // Check available slot
-        while (seq >= (tail + nSlots))
+        long localTail = tail;
+        while (seq >= (localTail + nSlots))
         {
             Thread.yield();
+            localTail = tail;
         }
+
+        int index = slotOf(seq);
 
         while (true)
         {
-            long localTail = tail;
-
-            if (seq == localTail)
+            if (rSlots.get(index) == TAIL)
             {
                 // I'm alone on my slot I can go for it
-                runProtected(localTail, runnable);
+                runProtected(seq, runnable);
+                rSlots.set(index, null);
 
                 // Look for more to process
-                int index = slotOf(++localTail);
+                localTail = seq+1;
+                index = slotOf(localTail);
                 while (true)
                 {
                     Runnable slot;
                     while ((slot = rSlots.get(index))!=null)
                     {
-                        if (slot == LOCK)
-                        {
-                            continue;
-                        }
-
                         runProtected(localTail, slot);
-                        rSlots.lazySet(index, null);
+                        rSlots.set(index, null);
 
                         // Move to next slot
                         index = slotOf(++localTail);
                     }
 
+                    tail = localTail; // Wake up threads
+
                     // Synchronization point with competing threads on the slot
-                    if (rSlots.compareAndSet(index, null, LOCK))
+                    if (rSlots.compareAndSet(index, null, TAIL))
                     {
-                        tail = localTail;
-                        rSlots.lazySet(index, null);
                         return localTail;
                     }
                 }
-            }
-            else
-            {
-                int index = slotOf(seq);
+            } else {
                 if (rSlots.compareAndSet(index, null, runnable))
                 {
-                    localTail = tail;
-                    if (seq == localTail)
-                    {
-                        // set back to null
-                        rSlots.lazySet(index, null);
-                        // loop
-                    }
-                    else
-                    {
-                        return localTail;
-                    }
+                    return localTail;
                 }
             }
         }
