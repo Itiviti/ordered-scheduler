@@ -32,6 +32,7 @@ synchronized(this)
 ```
 
 Not very efficient because only 1 thread can EncodeProcessing() at a time.
+And Thread n+1 can't WriteToNetwork() while Thread n moved to WriteToDisk()
 
 ### Ordered Parallel
 
@@ -42,9 +43,13 @@ synchronized(this)
   UpdateIndex(A);
 }
   
-B = EncodeProcessing(A);    // This is run completely in parallel
+B = EncodeProcessing(A);
 
 orderedParalellProcessor1.runSequentially(ticket, WriteToNetwork(B));
 orderedParalellProcessor2.runSequentially(ticket, WriteToDisk(B);
 ```
 
+Here:
+- UpdateIndex() is synchronized but we get the ordering via the ticket
+- EncodeProcessing() is executed concurrently by multiple threads
+- WriteToNetWork() and WriteToDisk() are executed in parallel but always with the right ordering.
