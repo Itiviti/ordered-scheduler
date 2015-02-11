@@ -6,7 +6,7 @@ from the [Intel Guide for Developing Multithreaded Applications](https://softwar
 
 This implementation brings a lightweigth solution for unlocking code that it only synchronized because of ordered/sequential requirements.
 
-## Example
+## Pseudo-code example
 
 Multiple threads can execute the following code.
 
