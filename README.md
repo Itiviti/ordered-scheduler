@@ -8,7 +8,7 @@ This implementation brings a lightweigth solution for unlocking code that it onl
 
 ## Pseudo-code example
 
-Multiple threads can execute the following code.
+Multiple threads can execute the following actions.
 
 ```
 UpdateIndex(A);
@@ -17,7 +17,7 @@ WriteToNetwork(B);
 WriteToDisk(B);
 ```
 
-We need to need to have all operations in the right order to guarantee consistency between the Index, the Network remote and the Disk.
+We need to have all operations in the same order to guarantee consistency between the Index, the Network remote and the Disk.
 
 ### Synchronized
 
