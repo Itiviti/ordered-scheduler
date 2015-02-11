@@ -11,13 +11,40 @@ This implementation brings a lightweigth solution for unlocking code that it onl
 Multiple threads can execute the following code.
 
 ```
+UpdateIndex(A);
+B = EncodeProcessing(A);
+WriteToNetwork(B);
+WriteToDisk(B);
+```
+
+We need to need to have all operations in the right order to guarantee consistency between the Index, the Network remote and the Disk.
+
+### Synchronized
+
+```
 synchronized(this)
 {
-  Input A = queue.poll();
-  Output B = processing(A);
-  write(B);
+  UpdateIndex(A);
+  B = EncodeProcessing(A);
+  WriteToNetwork(B);
+  WriteToDisk(B);
 }
 ```
-We need to write B in the same order than A is read from the queue.
-So the reading and the writing are synchronized so no thread can race each other in this execution.
+
+Not very efficient because only 1 thread can EncodeProcessing() at a time.
+
+### Ordered Parallel
+
+```
+synchronized(this)
+{
+  ticket = getNextTicket();
+  UpdateIndex(A);
+}
+  
+B = EncodeProcessing(A);    // This is run completely in parallel
+
+orderedParalellProcessor1.runSequentially(ticket, WriteToNetwork(B));
+orderedParalellProcessor2.runSequentially(ticket, WriteToDisk(B);
+```
 
