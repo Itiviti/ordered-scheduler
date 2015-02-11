@@ -50,6 +50,6 @@ orderedParalellProcessor2.runSequentially(ticket, WriteToDisk(B);
 ```
 
 Here:
-- UpdateIndex() is synchronized but we get the ordering via the ticket
+- UpdateIndex() is synchronized and we get the ordering via the ticket
 - EncodeProcessing() is executed concurrently by multiple threads
 - WriteToNetWork() and WriteToDisk() are executed in parallel but always with the right ordering.
