@@ -1,4 +1,4 @@
-# Ordered Parallel Processor
+# Ordered Parallel Processor [![Build Status](https://travis-ci.org/Ullink/ordered-parallel-processor.svg?branch=master)](https://travis-ci.org/Ullink/ordered-parallel-processor)
 Ordered processing going parallel
 
 Inspired by the article [Exploiting Data Parallelism in Ordered Data Streams](https://software.intel.com/en-us/articles/exploiting-data-parallelism-in-ordered-data-streams)
