@@ -10,7 +10,7 @@ This implementation brings a lightweigth solution for unlocking code that it onl
 
 Multiple threads can execute the following actions.
 
-```
+```java
 UpdateIndex(A);
 B = EncodeProcessing(A);
 WriteToNetwork(B);
@@ -21,7 +21,7 @@ We need to have all operations in the same order to guarantee consistency betwee
 
 ### Synchronized
 
-```
+```java
 synchronized(this)
 {
   UpdateIndex(A);
@@ -36,7 +36,7 @@ And Thread n+1 can't WriteToNetwork() while Thread n moved to WriteToDisk()
 
 ### Ordered Parallel
 
-```
+```java
 synchronized(this)
 {
   ticket = getNextTicket();
