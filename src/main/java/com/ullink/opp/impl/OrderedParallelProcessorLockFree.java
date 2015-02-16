@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-package com.ullink.opp;
+package com.ullink.opp.impl;
+
+import com.ullink.opp.ExceptionHandler;
+import com.ullink.opp.OrderedParallelProcessor;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-public class OrderedParallelProcessorLockFree
+public class OrderedParallelProcessorLockFree implements OrderedParallelProcessor
 {
     private final int           nSlots;
     private final int           mask;
 
-    private static final Runnable TAIL = new Runnable() {
-        @Override
-        public void run() {
-            throw new Error("Executing TAIL, not possible");
-        }
+    private static final Runnable TAIL = () -> {
+        throw new AssertionError("Executing TAIL, not possible");
     };
 
     private final AtomicReferenceArray<Runnable> rSlots;
@@ -53,12 +53,7 @@ public class OrderedParallelProcessorLockFree
 
     public OrderedParallelProcessorLockFree(int nSlot)
     {
-        this(nSlot, new ExceptionHandler() {
-            @Override
-            public void handle(long seq, Runnable runnable, Throwable exception) {
-                // By default, don't do anything
-            }
-        });
+        this(nSlot, (s,r,e) -> {});
     }
 
     private int slotOf(long i)
@@ -66,13 +61,8 @@ public class OrderedParallelProcessorLockFree
         return (int) i & mask;
     }
 
-    /**
-     *
-     * @param seq
-     * @param runnable
-     * @return next sequence to be processed.
-     */
-    public long runSequentially(long seq, Runnable runnable)
+    @Override
+    public boolean runSequentially(long seq, Runnable runnable)
     {
         // Check available slot
         long localTail = tail;
@@ -112,13 +102,13 @@ public class OrderedParallelProcessorLockFree
                     // Synchronization point with competing threads on the slot
                     if (rSlots.compareAndSet(index, null, TAIL))
                     {
-                        return localTail;
+                        return true;
                     }
                 }
             } else {
                 if (rSlots.compareAndSet(index, null, runnable))
                 {
-                    return localTail;
+                    return false;
                 }
             }
         }

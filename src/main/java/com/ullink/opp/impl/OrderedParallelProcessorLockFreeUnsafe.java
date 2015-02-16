@@ -14,23 +14,22 @@
  * limitations under the License.
  */
 
-package com.ullink.opp;
+package com.ullink.opp.impl;
 
+import com.ullink.opp.ExceptionHandler;
+import com.ullink.opp.OrderedParallelProcessor;
 import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
 
-public class OrderedParallelProcessorLockFreeUnsafe
+public class OrderedParallelProcessorLockFreeUnsafe implements OrderedParallelProcessor
 {
     private final int           nSlots;
     private final long          mask;
 
-    private static final Runnable TAIL = new Runnable() {
-        @Override
-        public void run() {
-            throw new Error("Executing TAIL, not possible");
-        }
-    };
+    private static final Runnable TAIL = () -> {
+            throw new AssertionError("Executing TAIL, not possible");
+        };
 
     private final Runnable[] array; // must have exact type Object[]
     private static final Unsafe unsafe;
@@ -73,21 +72,11 @@ public class OrderedParallelProcessorLockFreeUnsafe
 
     public OrderedParallelProcessorLockFreeUnsafe(int nSlot)
     {
-        this(nSlot, new ExceptionHandler() {
-            @Override
-            public void handle(long seq, Runnable runnable, Throwable exception) {
-                // By default, don't do anything
-            }
-        });
+        this(nSlot, (s,r,e) -> {});
     }
 
-    /**
-     *
-     * @param seq
-     * @param runnable
-     * @return next sequence to be processed.
-     */
-    public long runSequentially(long seq, Runnable runnable)
+    @Override
+    public boolean runSequentially(long seq, Runnable runnable)
     {
         // Check available slot
         long localTail = tail;
@@ -127,7 +116,7 @@ public class OrderedParallelProcessorLockFreeUnsafe
                     // Synchronization point with competing threads on the slot
                     if (compareAndSet(offset, null, TAIL))
                     {
-                        return localTail;
+                        return true;
                     }
                 }
             }
@@ -135,7 +124,7 @@ public class OrderedParallelProcessorLockFreeUnsafe
             {
                 if (compareAndSet(offset, null, runnable))
                 {
-                    return localTail;
+                    return false;
                 }
             }
         }
