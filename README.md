@@ -6,50 +6,23 @@ from the [Intel Guide for Developing Multithreaded Applications](https://softwar
 
 This implementation brings a lightweigth solution for unlocking code that it only synchronized because of ordered/sequential requirements.
 
-## Pseudo-code example
+## Use case
 
-Multiple threads can execute the following actions.
-
-```java
-UpdateIndex(A);
-B = EncodeProcessing(A);
-WriteToNetwork(B);
-WriteToDisk(B);
-```
-
-We need to have all operations in the same order to guarantee consistency between the Index, the Network remote and the Disk.
-
-### Synchronized
+Multiple threads concurrently execute the following code.
 
 ```java
 synchronized(this)
 {
-  UpdateIndex(A);
-  B = EncodeProcessing(A);
-  WriteToNetwork(B);
-  WriteToDisk(B);
+  A = read();
+  B = process(A);
+  write(B);
 }
 ```
+
+We need to have all operations in the same order to guarantee consistency between the read() and the write() ordering.
 
 Not very efficient because only 1 thread can EncodeProcessing() at a time.
 And Thread n+1 can't WriteToNetwork() while Thread n moved to WriteToDisk()
 
 ### Ordered Parallel
 
-```java
-synchronized(this)
-{
-  ticket = getNextTicket();
-  UpdateIndex(A);
-}
-  
-B = EncodeProcessing(A);
-
-orderedParalellProcessor1.runSequentially(ticket, WriteToNetwork(B));
-orderedParalellProcessor2.runSequentially(ticket, WriteToDisk(B);
-```
-
-Here:
-- UpdateIndex() is synchronized and we get the ordering via the ticket
-- EncodeProcessing() is executed concurrently by multiple threads
-- WriteToNetWork() and WriteToDisk() are executed in parallel but always with the right ordering.
