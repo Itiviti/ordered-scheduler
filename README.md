@@ -4,27 +4,33 @@ Ordered processing going parallel
 Inspired by the article [Exploiting Data Parallelism in Ordered Data Streams](https://software.intel.com/en-us/articles/exploiting-data-parallelism-in-ordered-data-streams)
 from the [Intel Guide for Developing Multithreaded Applications](https://software.intel.com/en-us/articles/intel-guide-for-developing-multithreaded-applications).
 
-This implementation brings a lightweigth solution for unlocking code that it only synchronized because of ordered/sequential requirements.
+This implementation brings a lightweight solution for unlocking code that it only synchronized because of ordered/sequential requirements.
 
 ## Use case
 
-Multiple threads concurrently execute the following code.
-
 ```java
-synchronized(this)
+// called by multiple threads (e.g. thread pool)
+public void execute()
 {
-  A = read();
-  B = process(A);
-  write(B);
+  FooInput input;
+  synchronized (this)
+  {
+    // this call needs to be synchronized along the write() to guarantee same ordering
+    input = read();
+    // this call is therefore not executed conccurently (#1)
+    BarOutput output = process(input);
+    // both write calls need to done in the same order as the read(), forcing them to be under the same lock
+    write1(output);
+    write2(output);
+  }
 }
 ```
 
-We need to have all operations in the same order to guarantee consistency between the read() and the write() ordering.
+Performance drawbacks:
+- even though `process()` call may be thread-safe, it's not executed concurrently
+- even though `write1()` and `write2()` may be independent one from each other, they won't be executed in parallel
 
-Not very efficient because only 1 thread can EncodeProcessing() at a time.
-And Thread n+1 can't WriteToNetwork() while Thread n moved to WriteToDisk()
-
-### Ordered Parallel
+### Ordered Scheduler
 
 ```java
 OrderedScheduler scheduler = new OrderedScheduler()
@@ -53,3 +59,16 @@ public void execute()
   }
 }
 ```
+
+Performance benefits:
+- critical section has been reduced to the minimum (`read()` ordering)
+- `process()` is executed concurrently by the incoming threads
+- `write1()` and `write2()` may be executed in parallel (while still keeping the ordering in each pipe)
+- no extra thread/pool introduced (uses only the incoming/current ones)
+- implementation is *fast*: lock-free and wait-free (CAS only)
+
+Drawbacks:
+- a bit more user code
+- exceptions need to be handled in a separate callback
+
+
