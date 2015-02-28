@@ -26,3 +26,30 @@ And Thread n+1 can't WriteToNetwork() while Thread n moved to WriteToDisk()
 
 ### Ordered Parallel
 
+```java
+OrderedScheduler scheduler = new OrderedScheduler()
+OrderedPipe pipe1 = scheduler.createPipe();
+OrderedPipe pipe2 = scheduler.createPipe();
+
+public void execute()
+{
+  FooInput input;
+  synchronized (this)
+  {
+    // ticket will "record" the ordering of read() calls, and use it to guarantee same write() ordering
+    ticket = scheduler.getNextTicket();
+    input = read();
+  }
+  
+  try (ticket)
+  {
+    // this will be executed concurrently (obviously needs to be thread-safe)
+    BarOutput output = process(input);
+    
+    // each pipe will be sequentialy processed (in the order of the ticket)
+    // pipe.run() will return true if the task was executed by the current thread, and false if it will be executed by another thread
+    pipe1.run(ticket, () => { write1(output); } );
+    pipe2.run(ticket, () => { write2(output); } );
+  }
+}
+```
