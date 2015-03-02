@@ -1,5 +1,5 @@
-# Ordered Parallel Processor [![Build Status](https://travis-ci.org/Ullink/ordered-parallel-processor.svg?branch=master)](https://travis-ci.org/Ullink/ordered-parallel-processor)
-Ordered processing going parallel
+# Ordered Scheduler [![Build Status] (https://travis-ci.org/Ullink/ordered-scheduler.svg?branch=master)](https://travis-ci.org/Ullink/ordered-scheduler)
+
 
 Inspired by the article [Exploiting Data Parallelism in Ordered Data Streams](https://software.intel.com/en-us/articles/exploiting-data-parallelism-in-ordered-data-streams)
 from the [Intel Guide for Developing Multithreaded Applications](https://software.intel.com/en-us/articles/intel-guide-for-developing-multithreaded-applications).
