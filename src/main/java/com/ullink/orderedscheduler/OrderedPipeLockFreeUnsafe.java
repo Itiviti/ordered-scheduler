@@ -14,22 +14,28 @@
  * limitations under the License.
  */
 
-package com.ullink.opp.impl;
+package com.ullink.orderedscheduler;
 
-import com.ullink.opp.ExceptionHandler;
-import com.ullink.opp.OrderedParallelProcessor;
 import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
 
-public class OrderedParallelProcessorLockFreeUnsafe implements OrderedParallelProcessor
+public class OrderedPipeLockFreeUnsafe implements OrderedPipe
 {
     private final int           nSlots;
     private final long          mask;
 
-    private static final Runnable TAIL = () -> {
+    private volatile long       tail;
+    private static final Runnable TAIL = new Runnable() {
+        @Override
+        public void run() {
             throw new AssertionError("Executing TAIL, not possible");
-        };
+        }
+    };
+    private static final Runnable EMPTY = new Runnable() {
+        @Override
+        public void run() {}
+    };
 
     private final Runnable[] array; // must have exact type Object[]
     private static final Unsafe unsafe;
@@ -52,10 +58,12 @@ public class OrderedParallelProcessorLockFreeUnsafe implements OrderedParallelPr
     }
 
     private final ExceptionHandler exceptionHandler;
+    private static final ExceptionHandler NO_EXCEPTION_HANDLER = new ExceptionHandler() {
+        @Override
+        public void handle(Runnable runnable, Throwable exception) {}
+    };
 
-    private volatile long       tail;
-
-    public OrderedParallelProcessorLockFreeUnsafe(int nSlot, ExceptionHandler exceptionHandler)
+    public OrderedPipeLockFreeUnsafe(int nSlot, ExceptionHandler exceptionHandler)
     {
         // Next power of 2
         nSlot = 1 << (32 - Integer.numberOfLeadingZeros(nSlot - 1));
@@ -70,16 +78,30 @@ public class OrderedParallelProcessorLockFreeUnsafe implements OrderedParallelPr
         this.array[0] = TAIL;
     }
 
-    public OrderedParallelProcessorLockFreeUnsafe(int nSlot)
+    public OrderedPipeLockFreeUnsafe(int nSlot)
     {
-        this(nSlot, (s,r,e) -> {});
+        this(nSlot, NO_EXCEPTION_HANDLER);
     }
 
     @Override
-    public boolean runSequentially(long seq, Runnable runnable)
+    public void close(Ticket ticket)
     {
-        // Check available slot
+        run(ticket, EMPTY);
+    }
+
+    @Override
+    public boolean run(Ticket ticket, Runnable runnable)
+    {
+        long seq = ticket.seq;
         long localTail = tail;
+
+        // Check duplicate sequence
+        if (seq < localTail)
+        {
+            return false;
+        }
+
+        // Check available slot
         while (seq >= (localTail + nSlots))
         {
             Thread.yield();
@@ -93,7 +115,7 @@ public class OrderedParallelProcessorLockFreeUnsafe implements OrderedParallelPr
             if (getVolatile(offset) == TAIL)
             {
                 // I'm alone on my slot I can go for it
-                runProtected(seq, runnable);
+                runProtected(runnable);
                 set(offset, null);
 
                 // Look for more to process
@@ -104,7 +126,7 @@ public class OrderedParallelProcessorLockFreeUnsafe implements OrderedParallelPr
                     Runnable slot;
                     while ((slot = getVolatile(offset))!=null)
                     {
-                        runProtected(localTail, slot);
+                        runProtected(slot);
                         set(offset, null);
 
                         // Move to next slot
@@ -131,7 +153,7 @@ public class OrderedParallelProcessorLockFreeUnsafe implements OrderedParallelPr
     }
 
 
-    private void runProtected(long seq, Runnable runnable)
+    private void runProtected(Runnable runnable)
     {
         try
         {
@@ -141,7 +163,7 @@ public class OrderedParallelProcessorLockFreeUnsafe implements OrderedParallelPr
         {
             try
             {
-                exceptionHandler.handle(seq, runnable, e);
+                exceptionHandler.handle(runnable, e);
             }
             catch(Throwable ignored)
             {
@@ -161,24 +183,24 @@ public class OrderedParallelProcessorLockFreeUnsafe implements OrderedParallelPr
         return (Runnable) unsafe.getObjectVolatile(array, offset);
     }
 
-    private void setVolatile(long offset, Runnable o) {
-        unsafe.putObjectVolatile(array, offset, o);
-    }
+    //private void setVolatile(long offset, Runnable o) {
+    //    unsafe.putObjectVolatile(array, offset, o);
+    //}
 
-    private Runnable get(long offset)
-    {
-        return (Runnable) unsafe.getObject(array, offset);
-    }
+    //private Runnable get(long offset)
+    //{
+    //    return (Runnable) unsafe.getObject(array, offset);
+    //}
 
     private void set(long offset, Runnable o)
     {
         unsafe.putObject(array, offset, o);
     }
 
-    private void setOrdered(long offset, Runnable o)
-    {
-        unsafe.putOrderedObject(array, offset, o);
-    }
+    //private void setOrdered(long offset, Runnable o)
+    //{
+    //    unsafe.putOrderedObject(array, offset, o);
+    //}
 
     private boolean compareAndSet(long offset, Runnable expect, Runnable update)
     {

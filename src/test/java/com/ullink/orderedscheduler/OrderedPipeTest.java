@@ -1,8 +1,5 @@
-package com.ullink.opp;
+package com.ullink.orderedscheduler;
 
-import com.ullink.opp.impl.OrderedParallelProcessorLock;
-import com.ullink.opp.impl.OrderedParallelProcessorLockFree;
-import com.ullink.opp.impl.OrderedParallelProcessorLockFreeUnsafe;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -10,17 +7,16 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.Assert.assertTrue;
 
-public class OrderedParallelProcessorTest
+public class OrderedPipeTest implements Runnable
 {
     private final static int SIZE = 2000000;
     private ExecutorService x;
-    private OrderedParallelProcessor opp;
+    private OrderedScheduler os;
+    private OrderedPipe pipe;
 
-    private AtomicLong nextTicket;
     private long expectedTicket;
     private long failures;
 
@@ -30,12 +26,10 @@ public class OrderedParallelProcessorTest
         // Create Executor to simulate multiple thread processing
         x = new ThreadPoolExecutor(10, 10, 1, TimeUnit.DAYS, new ArrayBlockingQueue(SIZE));
 
-        // Create Ordered Parallel Processor with 1024 slots
-        //opp = new OrderedParallelProcessorLock(1024);
-        //opp = new OrderedParallelProcessorLockFree(1024);
-        opp = new OrderedParallelProcessorLockFreeUnsafe(1024);
+        // Create Ordered Pipe with 1024 slots
+        os = new OrderedScheduler();
+        pipe = os.createPipe(1024);
 
-        nextTicket = new AtomicLong(0);
         expectedTicket = 0;
         failures = 0;
     }
@@ -43,7 +37,7 @@ public class OrderedParallelProcessorTest
     @Test
     public void testSample() throws Exception
     {
-        fireProcessingThreads(this::execution);
+        fireProcessingThreads(this);
         waitEndOfProcessing();
         assertTrue(failures == 0);
     }
@@ -64,21 +58,23 @@ public class OrderedParallelProcessorTest
     /**
      * Method called by the executor with multiple threads
      */
-    private void execution()
+    public void run()
     {
-        // Get ticket for ordering
-        final long ticket = nextTicket.getAndIncrement();
+        final Ticket t = os.getNextTicketAtomic();
 
         // Some processing - executed in parallel
         someProcessing();
 
-        opp.runSequentially(ticket, () -> {
-            if (ticket == expectedTicket) {
-                // Good order
-                expectedTicket++;
-            } else {
-                // Wrong order
-                failures++;
+        pipe.run(t, new Runnable() {
+            @Override
+            public void run() {
+                if (t.seq == expectedTicket) {
+                    // Good order
+                    expectedTicket++;
+                } else {
+                    // Wrong order
+                    failures++;
+                }
             }
         });
     }

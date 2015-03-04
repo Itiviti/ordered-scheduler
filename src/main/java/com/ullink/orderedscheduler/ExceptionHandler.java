@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.ullink.opp;
+package com.ullink.orderedscheduler;
 
 public interface ExceptionHandler
 {
-    void handle(long seq, Runnable runnable, Throwable exception);
+    void handle(Runnable runnable, Throwable exception);
 }
