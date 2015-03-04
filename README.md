@@ -19,7 +19,8 @@ public void execute()
     input = read();
     // this call is therefore not executed conccurently (#1)
     BarOutput output = process(input);
-    // both write calls need to done in the same order as the read(), forcing them to be under the same lock
+    // both write calls need to done in the same order as the read(),
+    // forcing them to be under the same lock
     write1(output);
     write2(output);
   }
