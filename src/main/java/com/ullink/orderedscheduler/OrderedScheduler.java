@@ -23,7 +23,7 @@ public class OrderedScheduler
     {
         if (seq > 0)
         {
-            throw new IllegalStateException("Can't create a new pipe after first ticket");
+            throw new IllegalStateException("Can't create a new pipe after first ticket has been acquired");
         }
 
         OrderedPipe op = new OrderedPipeLockFreeUnsafe(pipeSize);
