@@ -92,10 +92,10 @@ public class OrderedScheduler
         long localTail = tail;
 
         // Check duplicate sequence
-        if (seq < localTail)
-        {
-            throw new IllegalArgumentException("Duplicate ticket requested for processing");
-        }
+        //if (seq < localTail)
+        //{
+        //    throw new IllegalArgumentException("Duplicate ticket requested for processing");
+        //}
 
         // Check available slot
         while (seq >= (localTail + nSlots))

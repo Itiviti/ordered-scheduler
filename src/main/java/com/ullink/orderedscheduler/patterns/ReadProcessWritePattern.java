@@ -25,19 +25,14 @@ import java.util.function.Supplier;
 public class ReadProcessWritePattern<IN, OUT>
 {
     private long seq = 0;
-    private Function<IN, OUT> process;
-    private Consumer<OUT> consumer;
     private OrderedScheduler os;
 
-    public ReadProcessWritePattern(Function<IN, OUT> process, Consumer<OUT> consumer)
+    public ReadProcessWritePattern(int size)
     {
-        this.process = process;
-        this.consumer = consumer;
-
-        os = new OrderedScheduler(1024);
+        os = new OrderedScheduler(size);
     }
 
-    public boolean execute(Supplier<IN> supplier)
+    public boolean execute(Supplier<IN> supplier, Function<IN, OUT> process, final Consumer<OUT> consumer)
     {
         final IN in;
         final long ticket;
