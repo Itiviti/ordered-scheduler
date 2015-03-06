@@ -40,6 +40,7 @@ OrderedPipe pipe2 = scheduler.createPipe();
 
 public void execute()
 {
+  Ticket ticket;
   FooInput input;
   synchronized (this)
   {
@@ -48,15 +49,15 @@ public void execute()
     input = read();
   }
   
-  try (ticket)
+  try (Ticket t = ticket)
   {
     // this will be executed concurrently (obviously needs to be thread-safe)
     BarOutput output = process(input);
     
     // each pipe will be sequentialy processed (in the order of the ticket)
     // pipe.run() will return true if the task was executed by the current thread, and false if it will be executed by another thread
-    pipe1.run(ticket, () => { write1(output); } );
-    pipe2.run(ticket, () => { write2(output); } );
+    pipe1.run(t, () => { write1(output); } );
+    pipe2.run(t, () => { write2(output); } );
   }
 }
 ```
