@@ -55,7 +55,7 @@ public void execute()
   catch(Exception e)
   {
     // Important to trash the ticket in case of a problem during the processing
-    // otherwise scheduler.run() can wait infinitely
+    // otherwise scheduler.run() will wait infinitely
     scheduler.trash(ticket);
     throw new RuntimeException(e);
   }
