@@ -19,7 +19,6 @@ package com.ullink.orderedscheduler;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -27,13 +26,13 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertTrue;
 
-public class OrderedPipeTest implements Runnable
+public class OrderedSchedulerTest implements Runnable
 {
     private final static int SIZE = 2000000;
     private ExecutorService x;
     private OrderedScheduler os;
-    private OrderedPipe pipe;
 
+    private long seq;
     private long expectedTicket;
     private long failures;
 
@@ -44,9 +43,9 @@ public class OrderedPipeTest implements Runnable
         x = new ThreadPoolExecutor(10, 10, 1, TimeUnit.DAYS, new ArrayBlockingQueue(SIZE));
 
         // Create Ordered Pipe with 1024 slots
-        os = new OrderedScheduler();
-        pipe = os.createPipe(1024);
+        os = new OrderedScheduler(1024);
 
+        seq = 0;
         expectedTicket = 0;
         failures = 0;
     }
@@ -77,35 +76,28 @@ public class OrderedPipeTest implements Runnable
      */
     public void run()
     {
-        Ticket t;
+        final long n;
 
         synchronized(this)
         {
-            t = os.getNextTicket();
+            n = seq++;
         }
 
-        try (Ticket i = t)
-        {
-            // Some processing - executed in parallel
-            someProcessing();
+        // Some processing - executed in parallel
+        someProcessing();
 
-            pipe.run(i, new Runnable() {
-                @Override
-                public void run() {
-                    if (i.seq == expectedTicket) {
-                        // Good order
-                        expectedTicket++;
-                    } else {
-                        // Wrong order
-                        failures++;
-                    }
+        os.run(n, new Runnable() {
+            @Override
+            public void run() {
+                if (n == expectedTicket) {
+                    // Good order
+                    expectedTicket++;
+                } else {
+                    // Wrong order
+                    failures++;
                 }
-            });
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
+            }
+        });
     }
 
     private void someProcessing()
