@@ -65,6 +65,20 @@ public void execute()
 }
 ```
 
+Or, using abstracting the OrderedScheduler usage with the provided Pattern classes:
+
+```java
+ReadProcessWritePatterm<FooInput,BarOutput> pattern = new ReadProcessWritePatterm<>()
+
+public void execute()
+{
+  pattern.execute(
+            () => { read() },
+            (input) => { process(input) },
+            () => { write(output); } );
+}
+```
+
 Performance benefits:
 - critical section has been reduced to the minimum (`read()` ordering)
 - `process()` is executed concurrently by the incoming threads
