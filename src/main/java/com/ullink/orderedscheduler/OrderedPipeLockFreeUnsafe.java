@@ -18,8 +18,6 @@ package com.ullink.orderedscheduler;
 
 import sun.misc.Unsafe;
 
-import java.lang.reflect.Field;
-
 public class OrderedPipeLockFreeUnsafe implements OrderedPipe
 {
     private final int           nSlots;
@@ -37,16 +35,12 @@ public class OrderedPipeLockFreeUnsafe implements OrderedPipe
         public void run() {}
     };
 
-    private final Runnable[] array; // must have exact type Object[]
-    private static final Unsafe unsafe;
+    private final Runnable[] array;
     private static final int base;
     private static final int shift;
+    private static final Unsafe unsafe = OrderedScheduler.UNSAFE;
     static {
         try {
-            final Field field = Unsafe.class.getDeclaredField("theUnsafe");
-            field.setAccessible(true);
-            unsafe = (Unsafe) field.get(null);
-
             base = unsafe.arrayBaseOffset(Runnable[].class);
             int scale = unsafe.arrayIndexScale(Runnable[].class);
             if ((scale & (scale - 1)) != 0)
@@ -86,6 +80,7 @@ public class OrderedPipeLockFreeUnsafe implements OrderedPipe
     @Override
     public void close(Ticket ticket)
     {
+        // TODO
         run(ticket, EMPTY);
     }
 
@@ -98,7 +93,14 @@ public class OrderedPipeLockFreeUnsafe implements OrderedPipe
         // Check duplicate sequence
         if (seq < localTail)
         {
-            return false;
+            if (runnable == EMPTY)      // Is this a close() call?
+            {
+                return false;
+            }
+            else
+            {
+                throw new IllegalArgumentException("Duplicate ticket requested for processing");
+            }
         }
 
         // Check available slot
