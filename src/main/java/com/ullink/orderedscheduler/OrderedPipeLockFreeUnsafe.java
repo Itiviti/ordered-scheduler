@@ -140,6 +140,7 @@ public class OrderedPipeLockFreeUnsafe implements OrderedPipe
                     // Synchronization point with competing threads on the slot
                     if (compareAndSet(offset, null, TAIL))
                     {
+                        ticket.plusOneProcessed();
                         return true;
                     }
                 }
@@ -148,6 +149,7 @@ public class OrderedPipeLockFreeUnsafe implements OrderedPipe
             {
                 if (compareAndSet(offset, null, runnable))
                 {
+                    ticket.plusOneProcessed();
                     return false;
                 }
             }

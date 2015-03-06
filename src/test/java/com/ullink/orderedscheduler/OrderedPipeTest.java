@@ -19,6 +19,7 @@ package com.ullink.orderedscheduler;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -76,23 +77,35 @@ public class OrderedPipeTest implements Runnable
      */
     public void run()
     {
-        final Ticket t = os.getNextTicketAtomic();
+        Ticket t;
 
-        // Some processing - executed in parallel
-        someProcessing();
+        synchronized(this)
+        {
+            t = os.getNextTicket();
+        }
 
-        pipe.run(t, new Runnable() {
-            @Override
-            public void run() {
-                if (t.seq == expectedTicket) {
-                    // Good order
-                    expectedTicket++;
-                } else {
-                    // Wrong order
-                    failures++;
+        try (Ticket i = t)
+        {
+            // Some processing - executed in parallel
+            someProcessing();
+
+            pipe.run(i, new Runnable() {
+                @Override
+                public void run() {
+                    if (i.seq == expectedTicket) {
+                        // Good order
+                        expectedTicket++;
+                    } else {
+                        // Wrong order
+                        failures++;
+                    }
                 }
-            }
-        });
+            });
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
     }
 
     private void someProcessing()

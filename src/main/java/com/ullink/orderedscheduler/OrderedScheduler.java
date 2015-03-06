@@ -70,7 +70,7 @@ public class OrderedScheduler
     public Ticket getNextTicket()
     {
         Ticket t = new Ticket();
-        t.orderedPipes = orderedPipes;
+        t.setOrderedPipes(orderedPipes);
         t.seq = seq++;
         return t;
     }
@@ -78,7 +78,7 @@ public class OrderedScheduler
     public Ticket getNextTicketAtomic()
     {
         Ticket t = new Ticket();
-        t.orderedPipes = orderedPipes;
+        t.setOrderedPipes(orderedPipes);
         t.seq = UNSAFE.getAndAddLong(this, seqOffset, 1L);
         return t;
     }

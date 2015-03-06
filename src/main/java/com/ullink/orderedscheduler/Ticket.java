@@ -22,14 +22,30 @@ import java.io.IOException;
 public class Ticket implements Closeable
 {
     long seq;
-    OrderedPipe[] orderedPipes;
+
+    private OrderedPipe[] orderedPipes;
+    private int toProcessCount = 0;
+
+    void setOrderedPipes(OrderedPipe[] ops)
+    {
+        this.orderedPipes = ops;
+        toProcessCount = ops.length;
+    }
+
+    void plusOneProcessed()
+    {
+        --toProcessCount;
+    }
 
     @Override
     public void close() throws IOException
     {
-        for(OrderedPipe op : orderedPipes)
+        if (toProcessCount>0)
         {
-            op.close(this);
+            for(OrderedPipe op : orderedPipes)
+            {
+                op.close(this);
+            }
         }
     }
 }
