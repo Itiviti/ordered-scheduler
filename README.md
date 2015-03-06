@@ -65,7 +65,7 @@ public void execute()
 }
 ```
 
-Or, using abstracting the OrderedScheduler usage with the provided Pattern classes:
+Or, abstracting the OrderedScheduler usage with the provided Pattern classes:
 
 ```java
 ReadProcessWritePatterm<FooInput,BarOutput> pattern = new ReadProcessWritePatterm<>()
@@ -75,7 +75,7 @@ public void execute()
   pattern.execute(
             () => { read() },
             (input) => { process(input) },
-            () => { write(output); } );
+            (output) => { write(output); } );
 }
 ```
 
