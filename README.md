@@ -68,7 +68,7 @@ public void execute()
 Or, abstracting the OrderedScheduler usage with the provided Pattern classes:
 
 ```java
-ReadProcessWritePatterm<FooInput,BarOutput> pattern = new ReadProcessWritePatterm<>()
+ReadProcessWritePattern<FooInput,BarOutput> pattern = new ReadProcessWritePattern<>()
 
 public void execute()
 {
