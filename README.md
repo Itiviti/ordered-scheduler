@@ -68,7 +68,7 @@ public void execute()
 Or, abstracting the OrderedScheduler usage with the provided Pattern classes:
 
 ```java
-ReadProcessWritePattern<FooInput,BarOutput> pattern = new ReadProcessWritePattern<>()
+GetInputProcessPushPattern<FooInput,BarOutput> pattern = new GetInputProcessPushPattern<>()
 
 public void execute()
 {
@@ -83,7 +83,8 @@ Performance benefits:
 - critical section has been reduced to the minimum (`read()` ordering)
 - `process()` is executed concurrently by the incoming threads
 - no extra thread/pool introduced (uses only the incoming/current ones)
-- implementation is *fast*: lock-free and wait-free (CAS only)
+- no calls to kernel for lock or thread notifications
+- implementation is *fast*: lock-free and wait-free
 
 Drawbacks:
 - a bit more user code
