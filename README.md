@@ -75,7 +75,7 @@ public void execute()
   pattern.execute(
             () => { read() },
             (input) => { process(input) },
-            (output) => { write(output); } );
+            (output) => { write(output) } );
 }
 ```
 
