@@ -22,12 +22,12 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class ReadProcessWritePattern<IN, OUT>
+public class GetInputProcessPushPattern<IN, OUT>
 {
     private long seq = 0;
     private OrderedScheduler os;
 
-    public ReadProcessWritePattern(int size)
+    public GetInputProcessPushPattern(int size)
     {
         os = new OrderedScheduler(size);
     }

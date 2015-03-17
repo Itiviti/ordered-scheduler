@@ -106,45 +106,44 @@ public class OrderedScheduler
 
         long offset = byteOffsetOf(seq);
 
-        while (true)
+        Runnable result = getAndSet(offset, runnable);
+        if (result == TAIL)
         {
-            if (getVolatile(offset) == TAIL)
+            // I'm alone on my slot I can go for it
+            runProtected(runnable);
+            set(offset, null);
+
+            // Look for more to process
+            localTail = seq+1;
+            offset = byteOffsetOf(localTail);
+            while (true)
             {
-                // I'm alone on my slot I can go for it
-                runProtected(runnable);
-                set(offset, null);
-
-                // Look for more to process
-                localTail = seq+1;
-                offset = byteOffsetOf(localTail);
-                while (true)
+                Runnable slot;
+                while ((slot = getVolatile(offset))!=null)
                 {
-                    Runnable slot;
-                    while ((slot = getVolatile(offset))!=null)
-                    {
-                        runProtected(slot);
-                        set(offset, null);
+                    runProtected(slot);
+                    set(offset, null);
 
-                        // Move to next slot
-                        offset = byteOffsetOf(++localTail);
-                    }
+                    // Move to next slot
+                    offset = byteOffsetOf(++localTail);
+                }
 
-                    tail = localTail; // Wake up threads
+                tail = localTail; // Wake up threads
 
-                    // Synchronization point with competing threads on the slot
-                    if (compareAndSet(offset, null, TAIL))
-                    {
-                        return true;
-                    }
+                // Synchronization point with competing threads on the slot
+                if (compareAndSet(offset, null, TAIL))
+                {
+                    return true;
                 }
             }
-            else
-            {
-                if (compareAndSet(offset, null, runnable))
-                {
-                    return false;
-                }
-            }
+        }
+        else if (result == null)
+        {
+            return false;
+        }
+        else
+        {
+            throw new AssertionError("Array is corrupted");
         }
     }
 
@@ -201,6 +200,11 @@ public class OrderedScheduler
     private boolean compareAndSet(long offset, Runnable expect, Runnable update)
     {
         return unsafe.compareAndSwapObject(array, offset, expect, update);
+    }
+
+    private Runnable getAndSet(long offset, Runnable update)
+    {
+        return (Runnable) unsafe.getAndSetObject(array, offset, update);
     }
 
 }
