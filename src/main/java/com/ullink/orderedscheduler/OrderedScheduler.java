@@ -204,7 +204,15 @@ public class OrderedScheduler
 
     private Runnable getAndSet(long offset, Runnable update)
     {
-        return (Runnable) unsafe.getAndSetObject(array, offset, update);
+        // TODO JDK8 -> return (Runnable) unsafe.getAndSetObject(array, offset, update);
+
+        Runnable r;
+        do
+        {
+            r = getVolatile(offset);
+        } while (!compareAndSet(offset, r, update));
+
+        return r;
     }
 
 }

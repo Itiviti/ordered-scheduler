@@ -18,10 +18,6 @@ package com.ullink.orderedscheduler.patterns;
 
 import com.ullink.orderedscheduler.OrderedScheduler;
 
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
-
 public class GetInputProcessPushPattern<IN, OUT>
 {
     private long seq = 0;
@@ -32,7 +28,7 @@ public class GetInputProcessPushPattern<IN, OUT>
         os = new OrderedScheduler(size);
     }
 
-    public boolean execute(Supplier<IN> supplier, Function<IN, OUT> process, final Consumer<OUT> consumer)
+    public boolean execute(InputSupplier<IN> supplier, InputProcess<IN, OUT> process, final OutputPush<OUT> consumer)
     {
         final IN in;
         final long ticket;
@@ -48,7 +44,7 @@ public class GetInputProcessPushPattern<IN, OUT>
         final OUT out;
         try
         {
-            out = process.apply(in);
+            out = process.process(in);
         }
         catch (Throwable t)
         {
@@ -59,7 +55,7 @@ public class GetInputProcessPushPattern<IN, OUT>
         return os.run(ticket, new Runnable() {
             @Override
             public void run() {
-                consumer.accept(out);
+                consumer.push(out);
             }
         });
     }
