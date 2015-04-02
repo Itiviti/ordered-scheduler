@@ -12,7 +12,7 @@ repositories {
 }
 
 group = 'com.ullink.parallel'
-version = '1.0'
+version = '0.9'
 description 'Ordered Scheduler brings a lightweigth solution for unlocking code that is only synchronized because of ordered/sequential requirements'
 
 publishing {
