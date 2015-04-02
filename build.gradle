@@ -1,16 +1,47 @@
+plugins {
+    id 'com.jfrog.bintray' version '1.1'
+    id 'com.ullink.functions' version '1.0'
+    id 'com.ullink.task-rules' version '1.0'
+}
+
 apply plugin: 'java'
+apply plugin: 'maven-publish'
 
 repositories {
     mavenCentral()
 }
 
-ext.ullinkGradleScripts = 'https://raw.github.com/gluck/gradle-scripts/master'
-apply from: "${ext.ullinkGradleScripts}/task-rules.gradle"
-apply from: "${ext.ullinkGradleScripts}/functions.gradle"
-
 group = 'com.ullink.parallel'
 version = '1.0'
 description 'Ordered Scheduler brings a lightweigth solution for unlocking code that is only synchronized because of ordered/sequential requirements'
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+bintray {
+    // to remove when upgraded plugindev to 1.0.4
+    user project.properties.bintrayUser
+    key project.properties.bintrayApiKey
+    publications = ['mavenJava']
+    publish = true
+    pkg {
+        userOrg = 'ullink'
+        repo = 'maven'
+        name = project.name
+        desc = description
+        labels = ['java', 'scheduler']
+        licenses = ['Apache-2.0']
+        websiteUrl = "https://github.com/Ullink/${project.name}"
+        issueTrackerUrl = "https://github.com/Ullink/${project.name}/issues"
+        vcsUrl = "https://github.com/Ullink/${project.name}"
+        version.gpg.sign = true
+    }
+}
 
 dependencies {
     testCompile(
