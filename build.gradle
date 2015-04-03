@@ -15,10 +15,22 @@ group = 'com.ullink.parallel'
 version = '1.0'
 description 'Ordered Scheduler brings a lightweigth solution for unlocking code that is only synchronized because of ordered/sequential requirements'
 
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
 publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
+            artifact sourcesJar
+            artifact javadocJar
         }
     }
 }
