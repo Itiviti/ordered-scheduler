@@ -1,4 +1,4 @@
-# Ordered Scheduler [![Build Status] (https://travis-ci.org/Ullink/ordered-scheduler.svg?branch=master)](https://travis-ci.org/Ullink/ordered-scheduler)
+# Ordered Scheduler
 Unlock code that have sequence / ordering requirements
 
 Inspired by the article [Exploiting Data Parallelism in Ordered Data Streams](https://software.intel.com/en-us/articles/exploiting-data-parallelism-in-ordered-data-streams)
